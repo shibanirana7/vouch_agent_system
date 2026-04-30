@@ -6,8 +6,11 @@ import json
 import uuid
 import logging
 from datetime import datetime, timezone
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from ..state import AgentState
+from ..llm import get_llm
+from .._utils import _text
 from ...mcp_server.handlers import query_trust_network
 from ...database import AsyncSessionLocal
 from ...trust.graph import TrustNetwork
@@ -150,6 +153,28 @@ async def _consult_peer(
         return None
 
 
+async def _generate_peer_question(user_query: str, category: str) -> str:
+    """Use LLM to craft a targeted follow-up question for peer consultation."""
+    llm = get_llm()
+    response = await llm.ainvoke([
+        SystemMessage(content=(
+            "You are a beauty shopping agent consulting a trusted peer agent. "
+            "Generate a single focused follow-up question to ask the peer based on the user's request. "
+            "The question should:\n"
+            "- Ask for the peer's personal experience or opinion on a specific, relevant aspect "
+            "(e.g. a formula concern, finish preference, value-for-money, skin type compatibility)\n"
+            "- Be concise — one or two sentences\n"
+            "- Sound natural, like one knowledgeable shopper asking another\n"
+            "Output only the question, no preamble."
+        )),
+        HumanMessage(content=(
+            f"User request: {user_query}\n"
+            f"Product category: {category}"
+        )),
+    ])
+    return _text(response.content).strip()
+
+
 async def _consult_peers_node(state: AgentState) -> AgentState:
     """Consult up to 2 trusted peers in parallel. Skips if already being consulted."""
     if state.get("is_consultation"):
@@ -159,10 +184,11 @@ async def _consult_peers_node(state: AgentState) -> AgentState:
     import asyncio
 
     last_message = state["messages"][-1].content if state["messages"] else ""
-    query = last_message.replace("[AGENT CONSULTATION] ", "")
+    user_query = last_message.replace("[AGENT CONSULTATION] ", "")
     agent_id = state["agent_id"]
     outputs = dict(state.get("subagent_outputs", {}))
     existing_recs = list(outputs.get("trust_recommendations", []))
+    category = outputs.get("trust_category", "general")
 
     try:
         async with AsyncSessionLocal() as db:
@@ -181,8 +207,15 @@ async def _consult_peers_node(state: AgentState) -> AgentState:
                 agent_id[:8], len(peers_to_consult),
                 ", ".join(f"{pid[:8]}(w={w:.2f})" for pid, w in peers_to_consult))
 
-    # Consult all peers in parallel
-    tasks = [_consult_peer(agent_id, peer_id, weight, query) for peer_id, weight in peers_to_consult]
+    # Generate a focused question once, then consult all peers in parallel
+    try:
+        peer_question = await _generate_peer_question(user_query, category)
+        logger.info("[%s] PEERS generated question: %r", agent_id[:8], peer_question)
+    except Exception:
+        logger.exception("Failed to generate peer question — falling back to raw query")
+        peer_question = user_query
+
+    tasks = [_consult_peer(agent_id, peer_id, weight, peer_question) for peer_id, weight in peers_to_consult]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     consultation_recs = [r for r in results if isinstance(r, dict)]
 
