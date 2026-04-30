@@ -1,0 +1,35 @@
+# Secrets
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Data / local DBs
+data/
+*.db
+*.sqlite
+
+# ChromaDB (legacy local vector store)
+chroma_data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# gcloud
+.gcloudignore

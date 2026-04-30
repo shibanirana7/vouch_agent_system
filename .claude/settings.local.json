@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ai.google.dev)",
+      "PowerShell(gcloud logging read \"resource.type=cloud_run_revision AND resource.labels.revision_name=vouch-backend-00059-tn5 AND severity>=ERROR\" --limit=2 --project vouch-agentic --format=\"value\\(textPayload\\)\" 2>&1)",
+      "PowerShell(gcloud run services update vouch-backend --update-env-vars \"GEMINI_MODEL=gemini-1.5-flash-002\" --platform managed --region us-central1 --project vouch-agentic 2>&1)",
+      "PowerShell(gcloud run services update-traffic vouch-backend --to-revisions vouch-backend-00060-nn7=100 --platform managed --region us-central1 --project vouch-agentic 2>&1)",
+      "PowerShell(gcloud logging read \"resource.type=cloud_run_revision AND resource.labels.revision_name=vouch-backend-00060-nn7 AND severity>=ERROR\" --limit=2 --project vouch-agentic --format=\"value\\(textPayload\\)\" 2>&1)"
+    ]
+  }
+}
