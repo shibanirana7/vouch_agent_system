@@ -47,7 +47,11 @@ async def _upsert_notification(
     existing = await db.execute(
         select(Notification).where(Notification.source_hash == source_hash)
     )
-    if existing.scalar_one_or_none():
+    existing_notif = existing.scalar_one_or_none()
+    if existing_notif:
+        if existing_notif.action_type is None and action_type is not None:
+            existing_notif.action_type = action_type
+            existing_notif.action_payload = action_payload
         return
     db.add(Notification(
         agent_id=agent_id,

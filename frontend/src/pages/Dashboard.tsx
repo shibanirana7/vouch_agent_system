@@ -120,7 +120,9 @@ export default function Dashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications', agentId] }),
   })
 
-  const agentNotifications = notifications.filter((n) => n.type !== 'connection_request')
+  const agentNotifications = notifications.filter(
+    (n) => n.type !== 'connection_request' && n.type !== 'friend_review'
+  )
   const restocks = agentNotifications.filter((n) => n.type === 'restock_due').length
   const showSummary = !summaryDismissed && restocks > 0
 

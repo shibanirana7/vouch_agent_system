@@ -167,10 +167,9 @@ async def dismiss_notification(
 
 
 async def _run_event_checks(agent_id: str, db: AsyncSession) -> None:
-    """Check for price drops and new friend reviews; persist as notifications."""
+    """Check for price drops; persist as notifications."""
     try:
         await _check_price_drops(agent_id, db)
-        await _check_friend_reviews(agent_id, db)
     except Exception:
         pass  # event checks must never break the caller
 
@@ -185,14 +184,18 @@ async def _upsert_notification(
     action_type: str | None = None,
     action_payload: dict | None = None,
 ) -> None:
-    """Create a notification only if one with this source_hash doesn't already exist."""
+    """Create or backfill a notification by source_hash."""
     existing = await db.execute(
         select(Notification).where(
             Notification.agent_id == agent_id,
             Notification.source_hash == source_hash,
         )
     )
-    if existing.scalar_one_or_none():
+    existing_notif = existing.scalar_one_or_none()
+    if existing_notif:
+        if existing_notif.action_type is None and action_type is not None:
+            existing_notif.action_type = action_type
+            existing_notif.action_payload = action_payload
         return
     notif = Notification(
         agent_id=agent_id,
