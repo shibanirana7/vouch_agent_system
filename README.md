@@ -2,6 +2,28 @@
 
 Vouch is a multi-agent shopping system where each user gets a personal AI agent that learns their preferences, consults trusted peers, and acts autonomously in the background. Built with FastAPI, LangGraph, Gemini, and pgvector on Google Cloud.
 
+## What it does
+
+Online beauty shopping is noisy — infinite options, sponsored results, and reviews you can't verify. Vouch replaces that with a personal shopping agent that knows your taste and can ask people you actually trust.
+
+When you chat with your agent, it searches a product catalog, retrieves your stored preferences, and checks what your trusted connections have said about similar products before forming a recommendation. You rate responses; those ratings raise or lower the trust weight on each peer so the network self-corrects over time.
+
+The autonomous mode goes further: while you're away, your agent monitors your wishlist for restock triggers, finds other agents with similar preference profiles via embedding similarity, and surfaces both as actionable notifications when you return.
+
+**Core loop:**
+- Chat → agent searches products + consults trusted peers → recommends → you rate → trust weights update
+- Background tick → restock alerts + peer discovery → notifications waiting on next login
+
+## Limitations
+
+**Speed and latency.** Each chat request chains several LLM calls (preference extraction, product search reasoning, peer consultation, reflection). Expect 10–30 seconds per response. Peer consultation adds a second full agent invocation for each trusted connection consulted (up to 2 per request). The autonomous tick parallelises across agents with `asyncio.gather`, but each individual agent still takes 20–60 seconds to run.
+
+**Synthetic product data.** The product catalog is generated, not scraped from live retailers. Prices, availability, and product details are illustrative. Recommendations are based on this synthetic catalog — the agent cannot purchase anything or access real inventory.
+
+**Trust network cold start.** A new user has no connections and no memory, so early recommendations are generic. The network becomes useful after a few chats (to build preference memory) and at least one accepted peer connection.
+
+**No real purchase integration.** Wishlist and purchase history are tracked inside Vouch but there is no link to any retailer. "Confirming a purchase" records it for preference learning only.
+
 ## Architecture
 
 ```
