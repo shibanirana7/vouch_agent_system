@@ -10,6 +10,7 @@ const navItems = [
   { to: '/purchases', label: 'Purchases' },
   { to: '/social', label: 'My Network' },
   { to: '/profile', label: 'Profile' },
+  { to: '/home', label: 'Guide' },
 ]
 
 export default function Layout() {

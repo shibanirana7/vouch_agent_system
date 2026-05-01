@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
+import Home from './pages/Home'
 import SignUp from './pages/SignUp'
 import Login from './pages/Login'
 import OAuthAuthorize from './pages/OAuthAuthorize'
@@ -24,6 +25,7 @@ export default function App() {
         {agentId ? (
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/social" element={<SocialGraph />} />
             <Route path="/purchases" element={<Purchases />} />
@@ -32,7 +34,10 @@ export default function App() {
             <Route path="/feed" element={<AgentFeed />} />
           </Route>
         ) : (
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <>
+            <Route path="/" element={<Home standalone />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
         )}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
