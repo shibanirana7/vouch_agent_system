@@ -283,6 +283,7 @@ async def respond_to_connection_request(
     req.status = payload.action
 
     if payload.action == "accept":
+        # Create B → A (accepter trusts requester)
         existing = await db.execute(
             select(TrustRelationship).where(
                 TrustRelationship.from_agent_id == req.to_agent_id,
@@ -290,36 +291,26 @@ async def respond_to_connection_request(
             )
         )
         if not existing.scalar_one_or_none():
-            rel = TrustRelationship(
+            db.add(TrustRelationship(
                 from_agent_id=req.to_agent_id,
                 to_agent_id=req.from_agent_id,
                 trust_level=payload.trust_level,
                 trust_weight=TRUST_WEIGHTS[payload.trust_level],
-            )
-            db.add(rel)
+            ))
 
-        # Notify the original requester so they can add back
-        import hashlib
-        from ..models.notification import Notification
-        accepter_row = await db.execute(
-            select(User).join(ShoppingAgent, ShoppingAgent.user_id == User.id)
-            .where(ShoppingAgent.id == req.to_agent_id)
+        # Create A → B (requester trusts accepter) — makes the connection mutual
+        reverse = await db.execute(
+            select(TrustRelationship).where(
+                TrustRelationship.from_agent_id == req.from_agent_id,
+                TrustRelationship.to_agent_id == req.to_agent_id,
+            )
         )
-        accepter_user = accepter_row.scalar_one_or_none()
-        accepter_name = accepter_user.name if accepter_user else "Someone"
-        source_hash = hashlib.sha256(f"req_accepted:{request_id}".encode()).hexdigest()
-        already = await db.execute(
-            select(Notification).where(Notification.source_hash == source_hash)
-        )
-        if not already.scalar_one_or_none():
-            db.add(Notification(
-                agent_id=req.from_agent_id,
-                type="connection_accepted",
-                title=f"{accepter_name} accepted your connection",
-                body=f"{accepter_name} is now in your network. Add them back to share recommendations.",
-                source_hash=source_hash,
-                action_type="add_friend",
-                action_payload={"to_agent_id": req.to_agent_id, "trust_level": "acquaintance"},
+        if not reverse.scalar_one_or_none():
+            db.add(TrustRelationship(
+                from_agent_id=req.from_agent_id,
+                to_agent_id=req.to_agent_id,
+                trust_level=payload.trust_level,
+                trust_weight=TRUST_WEIGHTS[payload.trust_level],
             ))
 
     await db.commit()
